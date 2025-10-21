@@ -1,0 +1,23 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: gemma-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vllm-gemma-deployment
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: External
+    external:
+      metric:
+        name: prometheus.googleapis.com|dcgm_fi_dev_gpu_util|unknown
+        selector:
+          matchLabels:
+            metric.labels.exported_container: inference-server
+            metric.labels.exported_namespace: default
+      target:
+        type: AverageValue
+        averageValue:  20
