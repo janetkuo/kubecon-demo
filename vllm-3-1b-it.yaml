@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: inference-server
-        image: docker.io/vllm/vllm-openai:v0.10.0
+        image: vllm/vllm-openai:v0.11.0
         resources:
           requests:
             cpu: "2"
@@ -37,7 +37,7 @@ spec:
         - --port=8000
         env:
         - name: LD_LIBRARY_PATH
-          value: :/usr/local/nvidia/lib64
+          value: ${LD_LIBRARY_PATH}:/usr/local/nvidia/lib64
         - name: MODEL_ID
           value: google/gemma-3-1b-it
         - name: HUGGING_FACE_HUB_TOKEN
