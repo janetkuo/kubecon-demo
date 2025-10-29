@@ -4,6 +4,8 @@ metadata:
   name: vllm-gemma-deployment
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: gemma-server
@@ -15,9 +17,27 @@ spec:
         ai.gke.io/inference-server: vllm
         examples.ai.gke.io/source: user-guide
     spec:
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+      # Mounts for the driver libraries and binaries from the host
+      - name: nvidia-driver-libs
+        hostPath:
+          path: /home/kubernetes/bin/nvidia/lib64
+      - name: nvidia-driver-bin
+        hostPath:
+          path: /home/kubernetes/bin/nvidia/bin
+      # Mounts for the NVIDIA device nodes from the host
+      - name: nvidia-devices
+        hostPath:
+          path: /dev/
       containers:
       - name: inference-server
-        image: vllm/vllm-openai:v0.11.0
+        image: vllm/vllm-openai:v0.10.0
+        # Add privileged security context to access host devices
+        securityContext:
+          privileged: true
         resources:
           requests:
             cpu: "2"
@@ -27,6 +47,7 @@ spec:
             cpu: "2"
             memory: "10Gi"
             ephemeral-storage: "10Gi"
+        # Restore the original vllm command
         command: ["python3", "-m", "vllm.entrypoints.openai.api_server"]
         args:
         - --model=$(MODEL_ID)
@@ -35,7 +56,7 @@ spec:
         - --port=8000
         env:
         - name: LD_LIBRARY_PATH
-          value: ${LD_LIBRARY_PATH}:/usr/local/nvidia/lib64
+          value: /usr/local/nvidia/lib64
         - name: MODEL_ID
           value: google/gemma-3-1b-it
         - name: HUGGING_FACE_HUB_TOKEN
@@ -46,10 +67,16 @@ spec:
         volumeMounts:
         - mountPath: /dev/shm
           name: dshm
-      volumes:
-      - name: dshm
-        emptyDir:
-            medium: Memory
+        # Mount the driver libraries and binaries
+        - name: nvidia-driver-libs
+          mountPath: /usr/local/nvidia/lib64
+          readOnly: true
+        - name: nvidia-driver-bin
+          mountPath: /usr/local/nvidia/bin
+          readOnly: true
+        # Mount the NVIDIA devices
+        - name: nvidia-devices
+          mountPath: /dev/
       tolerations:
       - key: "nvidia.com/gpu"
         operator: "Exists"
