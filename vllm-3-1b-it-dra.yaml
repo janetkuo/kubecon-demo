@@ -21,20 +21,18 @@ spec:
       - name: dshm
         emptyDir:
           medium: Memory
-      # Mounts for the driver libraries and binaries from the host
       - name: nvidia-driver-libs
         hostPath:
           path: /home/kubernetes/bin/nvidia/lib64
       - name: nvidia-driver-bin
         hostPath:
           path: /home/kubernetes/bin/nvidia/bin
-      # Mounts for the NVIDIA device nodes from the host
       - name: nvidia-devices
         hostPath:
           path: /dev/
       containers:
       - name: inference-server
-        image: vllm/vllm-openai:v0.10.0
+        image: vllm/vllm-openai:v0.11.0
         # Add privileged security context to access host devices
         securityContext:
           privileged: true
@@ -47,7 +45,6 @@ spec:
             cpu: "2"
             memory: "10Gi"
             ephemeral-storage: "10Gi"
-        # Restore the original vllm command
         command: ["python3", "-m", "vllm.entrypoints.openai.api_server"]
         args:
         - --model=$(MODEL_ID)
@@ -57,6 +54,8 @@ spec:
         env:
         - name: LD_LIBRARY_PATH
           value: /usr/local/nvidia/lib64
+        - name: PATH
+          value: /usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
         - name: MODEL_ID
           value: google/gemma-3-1b-it
         - name: HUGGING_FACE_HUB_TOKEN
@@ -67,14 +66,12 @@ spec:
         volumeMounts:
         - mountPath: /dev/shm
           name: dshm
-        # Mount the driver libraries and binaries
         - name: nvidia-driver-libs
           mountPath: /usr/local/nvidia/lib64
           readOnly: true
         - name: nvidia-driver-bin
           mountPath: /usr/local/nvidia/bin
           readOnly: true
-        # Mount the NVIDIA devices
         - name: nvidia-devices
           mountPath: /dev/
       tolerations:

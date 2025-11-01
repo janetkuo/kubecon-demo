@@ -8,6 +8,7 @@
 # load demo-magic.sh
 . ./demo-magic.sh
 
+export DEMO_PROMPT="☸️ \$ " 
 # export DEMO_PROMPT="[KubeCon-Demo] 👩‍💻 \$ "
 
 #TYPE_SPEED=20
@@ -21,7 +22,8 @@ clear
 # 'pe' (Print and Execute)
 # 'pei' (Print and Execute immediately)
 # 'wait' pause until Enter
-pei "# AI-conformant clusters support Dynamic Resource Allocation (DRA) APIs"
+pei "# This demo uses a 1.34 Kubernetes AI-conformant cluster"
+pei "# ✅ AI-conformant clusters support Dynamic Resource Allocation (DRA) APIs"
 pei "# Verify that DRA driver is running"
 pei "kubectl get pods -n nvidia-dra-driver-gpu"
 pei "# Confirm that the ResourceSlice lists the hardware devices"
@@ -50,28 +52,32 @@ curl http://127.0.0.1:8000/v1/chat/completions \
           "content": "What is KubeCon?"
         }
     ]
-}' | jq
+}' | jq -r '.choices[0].message.content'
 EOF
 )
 pe "$CMD"
 TYPE_SPEED=$ORIGINAL_TYPE_SPEED
 wait
 
-pei "# AI-conformant clusters exposes performance metrics of its accelerators"
+pei "# ✅ AI-conformant clusters exposes performance metrics of its accelerators"
 pei "# Now run the following in a separate terminal for accessing exported GPU metrics:"
 pei "# export DCGM_POD_NAME=\$(kubectl get pods --namespace gke-managed-system -l app.kubernetes.io/name=gke-managed-dcgm-exporter -o jsonpath='{.items[0].metadata.name}')"
 pei "# kubectl -n gke-managed-system port-forward \${DCGM_POD_NAME} 9400:9400"
 pei "# Check the GPU metrics"
-pe "curl -s http://localhost:9400/metrics | grep DCGM_FI_DEV_GPU_"
+pe "curl -s http://localhost:9400/metrics"
 wait
 
-pei "# AI-conformant clusters can scale Pods utilizing accelerators based on custom metrics."
-pei "# Autoscale the AI workload based on GPU utilization"
+pei "# Check the vLLM metrics"
+pe "curl -s http://localhost:8000/metrics | grep vllm:num_requests_running"
+wait
+
+pei "# ✅ AI-conformant clusters provide a monitoring system."
+pei "# ✅ AI-conformant clusters can scale Pods utilizing accelerators based on custom metrics."
+pei "# Autoscale the AI workload based on load"
 pei "less gemma-hpa.yaml"
 wait
 pei "kubectl apply -f gemma-hpa.yaml"
 pei "# In a separate terminal, run ./request-looper.sh to generate some loads to the vLLM server..."
-wait
 pei "kubectl get hpa -w"
 wait
 
