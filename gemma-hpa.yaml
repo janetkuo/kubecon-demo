@@ -13,8 +13,8 @@ spec:
   - type: Pods
     pods:
       metric:
+        # This metric is exposed by the vLLM pod and collected by the platform's Prometheus service
         name: prometheus.googleapis.com|vllm:num_requests_running|gauge
       target:
         type: AverageValue
-        # This will scale up when the average number of running requests per pod is greater than the set value.
-        averageValue: 10
+        averageValue: "10"

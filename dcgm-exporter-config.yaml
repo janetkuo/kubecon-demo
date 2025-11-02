@@ -1,0 +1,222 @@
+# This manifest is adapted for a GKE environment using Dynamic Resource Allocation (DRA),
+# which requires manual driver installation and disabling the default GKE device plugin.
+
+---
+# 1. ConfigMap to define which DCGM metrics to collect.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nvidia-dcgm-exporter-metrics
+  namespace: gmp-public
+data:
+  counters.csv: |
+    # Utilization (the sample period varies depending on the product),,
+    DCGM_FI_DEV_GPU_UTIL, gauge, GPU utilization (in %).
+    DCGM_FI_DEV_MEM_COPY_UTIL, gauge, Memory utilization (in %).
+
+    # Temperature and power usage,,
+    DCGM_FI_DEV_GPU_TEMP, gauge, Current temperature readings for the device in degrees C.
+    DCGM_FI_DEV_MEMORY_TEMP, gauge, Memory temperature for the device.
+    DCGM_FI_DEV_POWER_USAGE, gauge, Power usage for the device in Watts.
+
+    # IP Block Utilization,,
+    DCGM_FI_PROF_SM_ACTIVE, gauge, The ratio of cycles an SM has at least 1 warp assigned
+    DCGM_FI_PROF_SM_OCCUPANCY, gauge, The fraction of resident warps on a multiprocessor
+    DCGM_FI_PROF_PIPE_TENSOR_ACTIVE, gauge, The ratio of cycles the tensor (HMMA) pipe is active
+    DCGM_FI_PROF_PIPE_FP64_ACTIVE, gauge, The fraction of cycles the FP64 (double precision) pipe was active.
+    DCGM_FI_PROF_PIPE_FP32_ACTIVE, gauge, The fraction of cycles the FP32 (single precision) pipe was active.
+    DCGM_FI_PROF_PIPE_FP16_ACTIVE, gauge, The fraction of cycles the FP16 (half precision) pipe was active.
+
+    # Memory usage,,
+    DCGM_FI_DEV_FB_FREE, gauge, Framebuffer memory free (in MiB).
+    DCGM_FI_DEV_FB_USED, gauge, Framebuffer memory used (in MiB).
+
+    # PCIE,,
+    DCGM_FI_PROF_PCIE_TX_BYTES, counter, Total number of bytes transmitted through PCIe TX
+    DCGM_FI_PROF_PCIE_RX_BYTES, counter, Total number of bytes received through PCIe RX
+
+    # NVLink,,
+    DCGM_FI_PROF_NVLINK_TX_BYTES, counter, The number of bytes of active NvLink tx (transmit) data
+    DCGM_FI_PROF_NVLINK_RX_BYTES, counter, The number of bytes of active NvLink rx (read) data
+---
+# 2. DaemonSet for the DCGM Host Engine.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvidia-dcgm
+  namespace: gmp-public
+  labels:
+    app: nvidia-dcgm
+spec:
+  selector:
+    matchLabels:
+      app: nvidia-dcgm
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: nvidia-dcgm
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu.present
+                operator: In
+                values:
+                - "true"
+      tolerations:
+      - key: "nvidia.com/gpu"
+        operator: "Exists"
+        effect: "NoSchedule"
+      volumes:
+      - name: pod-resources
+        hostPath:
+          path: /var/lib/kubelet/pod-resources
+      - name: nvidia-driver-libs
+        hostPath:
+          path: /home/kubernetes/bin/nvidia/lib64
+      - name: nvidia-driver-bin
+        hostPath:
+          path: /home/kubernetes/bin/nvidia/bin
+      - name: nvidia-devices
+        hostPath:
+          path: /dev/
+      containers:
+      - image: "nvcr.io/nvidia/cloud-native/dcgm:3.3.0-1-ubuntu22.04"
+        name: nvidia-dcgm
+        command: ["nv-hostengine", "-n", "-b", "ALL"]
+        ports:
+        - containerPort: 5555
+          hostPort: 5555
+          name: nvidia-dcgm
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: pod-resources
+          mountPath: /var/lib/kubelet/pod-resources
+        - name: nvidia-driver-libs
+          mountPath: /usr/local/nvidia/lib64
+        - name: nvidia-driver-bin
+          mountPath: /usr/local/nvidia/bin
+        - name: nvidia-devices
+          mountPath: /dev/
+---
+# 3. DaemonSet for the DCGM Exporter.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvidia-dcgm-exporter
+  namespace: gmp-public
+  labels:
+    app.kubernetes.io/name: nvidia-dcgm-exporter
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nvidia-dcgm-exporter
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nvidia-dcgm-exporter
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu.present
+                operator: In
+                values:
+                - "true"
+      tolerations:
+      - key: "nvidia.com/gpu"
+        operator: "Exists"
+        effect: "NoSchedule"
+      volumes:
+      - name: pod-resources
+        hostPath:
+          path: /var/lib/kubelet/pod-resources
+      - name: nvidia-dcgm-exporter-metrics
+        configMap:
+          name: nvidia-dcgm-exporter-metrics
+      - name: nvidia-driver-libs
+        hostPath:
+          path: /home/kubernetes/bin/nvidia/lib64
+      - name: nvidia-driver-bin
+        hostPath:
+          path: /home/kubernetes/bin/nvidia/bin
+      - name: nvidia-devices
+        hostPath:
+          path: /dev/
+      containers:
+      - name: nvidia-dcgm-exporter
+        image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.0-3.2.0-ubuntu22.04
+        command: ["/bin/bash", "-c"]
+        # REVERTED: Connect to the host engine via the Node's IP address.
+        args:
+        - dcgm-exporter --remote-hostengine-info $(NODE_IP) --collectors /etc/dcgm-exporter/counters.csv
+        ports:
+        - name: metrics
+          containerPort: 9400
+        securityContext:
+          privileged: true
+        env:
+        # ADDED: Add NVIDIA binaries to the container's PATH.
+        - name: PATH
+          value: /usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: NODE_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: "DCGM_EXPORTER_KUBERNETES_GPU_ID_TYPE"
+          value: "device-name"
+        - name: LD_LIBRARY_PATH
+          value: /usr/local/nvidia/lib64
+        - name: DCGM_EXPORTER_KUBERNETES
+          value: 'true'
+        - name: DCGM_EXPORTER_LISTEN
+          value: ':9400'
+        volumeMounts:
+        - name: pod-resources
+          mountPath: /var/lib/kubelet/pod-resources
+        - name: nvidia-dcgm-exporter-metrics
+          mountPath: "/etc/dcgm-exporter"
+          readOnly: true
+        - name: nvidia-driver-libs
+          mountPath: /usr/local/nvidia/lib64
+        - name: nvidia-driver-bin
+          mountPath: /usr/local/nvidia/bin
+        - name: nvidia-devices
+          mountPath: /dev/
+---
+# 4. ClusterPodMonitoring to scrape metrics and support HPA.
+apiVersion: monitoring.googleapis.com/v1
+kind: ClusterPodMonitoring
+metadata:
+  name: custom-nvidia-dcgm-exporter-hpa
+  labels:
+    app.kubernetes.io/name: custom-nvidia-dcgm-exporter
+    app.kubernetes.io/part-of: google-cloud-managed-prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nvidia-dcgm-exporter
+  endpoints:
+  - port: metrics
+    interval: 15s
+    metricRelabeling:
+      - action: keep
+        sourceLabels: [__name__]
+      - action: replace
+        sourceLabels: [__name__]
+        targetLabel: __name__
+        regex: DCGM_FI_DEV_GPU_UTIL
+        replacement: dcgm_fi_dev_gpu_util

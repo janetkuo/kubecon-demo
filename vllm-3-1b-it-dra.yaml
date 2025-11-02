@@ -17,6 +17,10 @@ spec:
         ai.gke.io/inference-server: vllm
         examples.ai.gke.io/source: user-guide
     spec:
+      # Claims a single GPU via DRA
+      resourceClaims:
+      - name: single-gpu
+        resourceClaimTemplateName: gpu-claim-template
       volumes:
       - name: dshm
         emptyDir:
@@ -78,9 +82,6 @@ spec:
       - key: "nvidia.com/gpu"
         operator: "Exists"
         effect: "NoSchedule"
-      resourceClaims:
-      - name: single-gpu
-        resourceClaimTemplateName: gpu-claim-template
 ---
 apiVersion: v1
 kind: Service

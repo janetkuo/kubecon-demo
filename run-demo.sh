@@ -22,14 +22,15 @@ clear
 # 'pe' (Print and Execute)
 # 'pei' (Print and Execute immediately)
 # 'wait' pause until Enter
+
 pei "# This demo uses a 1.34 Kubernetes AI-conformant cluster"
-pei "# ✅ AI-conformant clusters support Dynamic Resource Allocation (DRA) APIs"
+pei "# ✅ AI-conformant platforms support Dynamic Resource Allocation (DRA) APIs"
 pei "# Verify that DRA driver is running"
 pei "kubectl get pods -n nvidia-dra-driver-gpu"
 pei "# Confirm that the ResourceSlice lists the hardware devices"
 pei "kubectl get resourceslices -o custom-columns=SLICE:.metadata.name,DEVICE_NAMES:.spec.devices[*].name"
 
-pei "# Deploy a vLLM deployment serving Gemma model using DRA"
+pei "# Deploy a vLLM deployment serving Gemma AI model using DRA"
 pe "less claim-template.yaml"
 pei "kubectl apply -f claim-template.yaml"
 pe "less vllm-3-1b-it-dra.yaml"
@@ -38,7 +39,7 @@ pei "kubectl wait --for=condition=Available --timeout=1800s deployment/vllm-gemm
 pei "kubectl logs -f -l app=gemma-server"
 
 pei "# Now run 'kubectl port-forward service/llm-service 8000:8000' in a separate terminal"
-pei "# Ask Gemma model about KubeCon"
+pei "# Then, come back and ask Gemma AI model about KubeCon"
 TYPE_SPEED=$FASTER_TYPE_SPEED
 CMD=$(cat <<EOF
 curl http://127.0.0.1:8000/v1/chat/completions \
@@ -59,26 +60,29 @@ pe "$CMD"
 TYPE_SPEED=$ORIGINAL_TYPE_SPEED
 wait
 
-pei "# ✅ AI-conformant clusters exposes performance metrics of its accelerators"
-pei "# Now run the following in a separate terminal for accessing exported GPU metrics:"
-pei "# export DCGM_POD_NAME=\$(kubectl get pods --namespace gke-managed-system -l app.kubernetes.io/name=gke-managed-dcgm-exporter -o jsonpath='{.items[0].metadata.name}')"
-pei "# kubectl -n gke-managed-system port-forward \${DCGM_POD_NAME} 9400:9400"
-pei "# Check the GPU metrics"
-pe "curl -s http://localhost:9400/metrics"
-wait
-
 pei "# Check the vLLM metrics"
 pe "curl -s http://localhost:8000/metrics | grep vllm:num_requests_running"
 wait
 
-pei "# ✅ AI-conformant clusters provide a monitoring system."
-pei "# ✅ AI-conformant clusters can scale Pods utilizing accelerators based on custom metrics."
+pei "# ✅ AI-conformant platforms provide a monitoring system."
+pei "# Verify that Prometheus pods managed by the platform are running."
+pei "kubectl get pods -n gmp-system"
+wait
+
+pei "# ✅ AI-conformant platforms can scale Pods utilizing accelerators based on custom metrics."
 pei "# Autoscale the AI workload based on load"
 pei "less gemma-hpa.yaml"
 wait
 pei "kubectl apply -f gemma-hpa.yaml"
 pei "# In a separate terminal, run ./request-looper.sh to generate some loads to the vLLM server..."
 pei "kubectl get hpa -w"
+
+pei "# ✅ AI-conformant platforms exposes performance metrics of its accelerators"
+pei "# Now run the following in a separate terminal for accessing exported GPU metrics:"
+pei "# export DCGM_POD_NAME=\$(kubectl get pods -n gmp-public -l app.kubernetes.io/name=nvidia-dcgm-exporter -o jsonpath='{.items[0].metadata.name}')"
+pei "# kubectl -n gmp-public port-forward \${DCGM_POD_NAME} 9400:9400"
+pei "# Then, come back to check the GPU metrics"
+pe "curl -s http://localhost:9400/metrics | grep DCGM_FI_DEV_GPU_"
 wait
 
-# Clean up
+pei ""
