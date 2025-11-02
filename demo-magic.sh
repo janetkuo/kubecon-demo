@@ -11,6 +11,8 @@
 #
 ###############################################################################
 
+# Cloned from https://github.com/paxtonhare/demo-magic for local execution
+
 # the speed to simulate typing the text
 TYPE_SPEED=20
 
