@@ -75,4 +75,4 @@ kubectl apply -f dcgm-exporter-for-hpa.yaml
 [<img src="https://img.youtube.com/vi/a1tlQ4U8EFs/maxresdefault.jpg" width="560" height="315"
 />](https://www.youtube.com/embed/a1tlQ4U8EFs?si=zD_VO7vaIhsdx2yl)
 
-Start a demo by running `./run-demo.sh`, which uses demo magic to type commands.
+Start a demo by running `./run-demo.sh`, which uses [demo magic](https://github.com/paxtonhare/demo-magic) to type commands.
