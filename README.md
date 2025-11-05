@@ -1,10 +1,9 @@
 # KubeCon Demo for AI Conformance
 
+## Cluster Setup
 * GKE 1.34 standard cluster with a DRA node pool with L4 GPUs
   * See more details in [set up DRA](https://cloud.google.com/kubernetes-engine/docs/how-to/set-up-dra)
   * Note: Creating Spot VM node pools is usually easier to obtain GPUs 
-
-[![Demo Recording](https://img.youtube.com/vi/a1tlQ4U8EFs/0.jpg)](https://www.youtube.com/watch?v=a1tlQ4U8EFs)
 
 <details>
 <summary>Detailed set up steps before running the demo</summary>
@@ -70,5 +69,10 @@ kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/k8s-stack
 kubectl apply -f dcgm-exporter-for-hpa.yaml
 ```
 </details>
+
+## Demo
+
+[<img src="https://img.youtube.com/vi/a1tlQ4U8EFs/hqdefault.jpg" width="560" height="315"
+/>](https://www.youtube.com/embed/a1tlQ4U8EFs?si=zD_VO7vaIhsdx2yl)
 
 Start a demo by running `./run-demo.sh`, which uses demo magic to type commands.
