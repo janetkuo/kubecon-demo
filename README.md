@@ -4,6 +4,8 @@
   * See more details in [set up DRA](https://cloud.google.com/kubernetes-engine/docs/how-to/set-up-dra)
   * Note: Creating Spot VM node pools is usually easier to obtain GPUs 
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/a1tlQ4U8EFs?si=zD_VO7vaIhsdx2yl" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 <details>
 <summary>Detailed set up steps before running the demo</summary>
 
