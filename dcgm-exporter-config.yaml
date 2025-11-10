@@ -156,7 +156,6 @@ spec:
       - name: nvidia-dcgm-exporter
         image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.0-3.2.0-ubuntu22.04
         command: ["/bin/bash", "-c"]
-        # REVERTED: Connect to the host engine via the Node's IP address.
         args:
         - dcgm-exporter --remote-hostengine-info $(NODE_IP) --collectors /etc/dcgm-exporter/counters.csv
         ports:
@@ -165,7 +164,6 @@ spec:
         securityContext:
           privileged: true
         env:
-        # ADDED: Add NVIDIA binaries to the container's PATH.
         - name: PATH
           value: /usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
         - name: NODE_NAME
@@ -213,8 +211,6 @@ spec:
   - port: metrics
     interval: 15s
     metricRelabeling:
-      - action: keep
-        sourceLabels: [__name__]
       - action: replace
         sourceLabels: [__name__]
         targetLabel: __name__
