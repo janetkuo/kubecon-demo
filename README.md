@@ -1,4 +1,6 @@
-# KubeCon Demo for AI Conformance
+# KubeCon Demo: Kubernetes AI Conformance
+
+Kubernetes AI Conformance Program: https://github.com/cncf/k8s-ai-conformance
 
 ## Cluster Setup
 * GKE 1.34 standard cluster with a DRA node pool with L4 GPUs
