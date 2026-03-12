@@ -39,6 +39,7 @@ pei "# Check HTTPRoute status"
 pei "kubectl get httproute -n \${NAMESPACE} -o yaml | grep -A 10 \"status:\""
 pei "# Verify the HTTPRoute is properly attached to the Gateway and routing to the InferencePool"
 pei "kubectl get gateway -n \${NAMESPACE} -o yaml | grep -A 5 \"attachedRoutes\""
+wait
 
 pei "# ✅ AI-conformant platforms SHOULD support disaggregated inference"
 pei "kubectl get deploy -n \${NAMESPACE}"
@@ -46,6 +47,7 @@ pei "# Prefill pods are running"
 pei "kubectl get pods -n \${NAMESPACE} -l llm-d.ai/role=prefill --field-selector status.phase=Running"
 pei "# Decode pods are running"
 pei "kubectl get pods -n \${NAMESPACE} -l llm-d.ai/role=decode --field-selector status.phase=Running"
+wait
 
 pei "# Disaggregated inference service is ready!"
 pei "# Send a request through the gateway to verify end-to-end functionality"
