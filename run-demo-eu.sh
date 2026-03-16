@@ -21,50 +21,78 @@ clear
 # 'pei' (Print and Execute immediately)
 # 'wait' pause until Enter
 
+# This demo uses a llm-d P/D workload on a GKE cluster with TPUs to demonstrate AI Conformance
 export NAMESPACE=llm-d-pd
-pei "# This demo uses a Kubernetes AI-conformant cluster"
-pei "# ✅ AI-conformant platforms MUST support the Kubernetes Gateway API with an implementation for advanced traffic management for inference services"
-pei "# First, check if the platform has defined a Gateway implementation"
-pei "kubectl get gatewayclass"
-pei "# Then, check if the Gateway is ready"
+
+###############################################################################
+# Gateway API (MUST requirement)
+###############################################################################
+
+pei "# Welcome to the AI Conformance Demo! We are running on an AI-conformant cluster."
+pei "# ✅ AI-conformant platforms MUST support Kubernetes Gateway API for advanced traffic management"
+pei "# Verify GatewayClasses. The 'CONTROLLER' column shows the underlying implementations backing these routing templates:"
+pei "kubectl get gatewayclass -o custom-columns=NAME:.metadata.name,CONTROLLER:.spec.controllerName"
+pei "# Verify that the inference Gateway is successfully instantiated using the L7 controller:"
 pei "kubectl get gateway -n \${NAMESPACE} -o custom-columns=NAME:.metadata.name,CLASS:.spec.gatewayClassName"
 wait
 
-pei "# ✅ AI-conformant platforms SHOULD support Gateway API Inference Extension (GAIE)"
-pei "# Check that InferencePool is ready"
+# To ensure the audience can focus on the following steps, we clear the screen
+clear
+###############################################################################
+# Gateway API Inference Extension (SHOULD requirement)
+###############################################################################
+
+pei "# ✅ AI-conformant platforms SHOULD support Gateway API Inference Extension (GAIE) for advanced inference routing"
+pei "# GAIE extends Gateway API to enable model-aware routing"
+pei "# InferencePool defines the set of model-serving pods behind the Gateway"
 pei "kubectl get inferencepools -n \${NAMESPACE}"
-pei "# Check that inference scheduler is ready"
-pei "kubectl get pods -n \${NAMESPACE} -l inferencepool=gaie-pd-epp"
-pei "# Check HTTPRoute status"
-pei "kubectl get httproute -n \${NAMESPACE} -o yaml | grep -A 10 \"status:\""
-pei "# Verify the HTTPRoute is properly attached to the Gateway and routing to the InferencePool"
-pei "kubectl get gateway -n \${NAMESPACE} -o yaml | grep -A 5 \"attachedRoutes\""
+pei "# The inference scheduler (endpoint picker) makes cache-aware routing decisions"
+pei "kubectl get pods -n \${NAMESPACE} -l inferencepool"
+pei "# The HTTPRoute routes traffic to an InferencePool, not a Service, that's GAIE!"
+pei "kubectl get httproute -n \${NAMESPACE} -o custom-columns=NAME:.metadata.name,BACKEND:.spec.rules[0].backendRefs[0].name,KIND:.spec.rules[0].backendRefs[0].kind"
+pei "# Verify the route is properly attached to the Gateway"
+pei "kubectl get gateway -n \${NAMESPACE} -o custom-columns=NAME:.metadata.name,ATTACHED-ROUTES:.status.listeners[0].attachedRoutes"
 wait
+
+# To ensure the audience can focus on the following steps, we clear the screen
+clear
+###############################################################################
+# Disaggregated Inference on TPU (SHOULD requirement)
+###############################################################################
 
 pei "# ✅ AI-conformant platforms SHOULD support disaggregated inference"
-pei "kubectl get deploy -n \${NAMESPACE}"
-pei "# Prefill pods are running"
-pei "kubectl get pods -n \${NAMESPACE} -l llm-d.ai/role=prefill --field-selector status.phase=Running"
-pei "# Decode pods are running"
-pei "kubectl get pods -n \${NAMESPACE} -l llm-d.ai/role=decode --field-selector status.phase=Running"
+pei "# To scale efficiently, disaggregated serving splits prefill and decode into separately scalable components, each can match different compute, memory, and network needs"
+pei "# Prefill pods handle prompt processing (compute-heavy)"
+pei "kubectl get pods -n \${NAMESPACE} -l llm-d.ai/role=prefill -o custom-columns=NAME:.metadata.name,STATUS:.status.phase,NODE:.spec.nodeName"
+pei "# Decode pods handle token generation (memory-bandwidth-heavy)"
+pei "kubectl get pods -n \${NAMESPACE} -l llm-d.ai/role=decode -o custom-columns=NAME:.metadata.name,STATUS:.status.phase,NODE:.spec.nodeName"
 wait
 
-pei "# Disaggregated inference service is ready!"
-pei "# Send a request through the gateway to verify end-to-end functionality"
-pei "export GATEWAY_NAME=\$(kubectl get gateway -n \${NAMESPACE} -o jsonpath='{.items[0].metadata.name}')"
-pei "export IP=\$(kubectl get gateway \${GATEWAY_NAME} -n \${NAMESPACE} -o jsonpath='{.status.addresses[0].value}')"
-pei "export PORT=\$(kubectl get gateway \${GATEWAY_NAME} -n \${NAMESPACE} -o jsonpath='{.spec.listeners[0].port}')"
+# To ensure the audience can focus on the following steps, we clear the screen
+clear
+###############################################################################
+# End-to-end request through the full stack
+###############################################################################
+
+pei "# All layers are in place. Let's send a live inference request."
+pei "# Request → Gateway → GAIE (cache-aware routing) → Prefill → Decode → Response"
+export GATEWAY_NAME=$(kubectl get gateway -n ${NAMESPACE} -o jsonpath='{.items[0].metadata.name}')
+export GATEWAY_IP=$(kubectl get gateway ${GATEWAY_NAME} -n ${NAMESPACE} -o jsonpath='{.status.addresses[0].value}')
+export GATEWAY_PORT=$(kubectl get gateway ${GATEWAY_NAME} -n ${NAMESPACE} -o jsonpath='{.spec.listeners[0].port}')
 TYPE_SPEED=$FASTER_TYPE_SPEED
 CMD=$(cat <<EOF
-curl http://\${IP}:\${PORT}/v1/completions \
+curl http://${GATEWAY_IP}:${GATEWAY_PORT}/v1/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "BCCard/Qwen3-Coder-480B-A35B-Instruct-FP8-Dynamic",
-    "prompt": "What is KubeCon?",
-    "max_tokens": 50
+    "prompt": "Explain in two sentences how Kubernetes helps run AI workloads at scale.",
+    "max_tokens": 100
   }' | jq -r '.choices[0].text'
 EOF
 )
 pe "$CMD"
 TYPE_SPEED=$ORIGINAL_TYPE_SPEED
+wait
+
+pei "# Kubernetes is the best platform for running AI workloads. 🎉"
 wait
