@@ -28,11 +28,11 @@ export NAMESPACE=llm-d-pd
 # Gateway API (MUST requirement)
 ###############################################################################
 
-pei "# Welcome to the AI Conformance Demo! We are running on an AI-conformant cluster."
+pei "# Welcome to the AI Conformance Demo! We are running on an AI-conformant cluster"
 pei "# ✅ AI-conformant platforms MUST support Kubernetes Gateway API for advanced traffic management"
-pei "# Verify GatewayClasses. The 'CONTROLLER' column shows the underlying implementations backing these routing templates:"
+pei "# Verify GatewayClasses. The 'CONTROLLER' column shows the underlying implementations"
 pei "kubectl get gatewayclass -o custom-columns=NAME:.metadata.name,CONTROLLER:.spec.controllerName"
-pei "# Verify that the inference Gateway is successfully instantiated using the L7 controller:"
+pei "# Verify that the inference Gateway is successfully instantiated using the L7 controller"
 pei "kubectl get gateway -n \${NAMESPACE} -o custom-columns=NAME:.metadata.name,CLASS:.spec.gatewayClassName"
 wait
 
@@ -43,15 +43,13 @@ clear
 ###############################################################################
 
 pei "# ✅ AI-conformant platforms SHOULD support Gateway API Inference Extension (GAIE) for advanced inference routing"
-pei "# GAIE extends Gateway API to enable model-aware routing"
-pei "# InferencePool defines the set of model-serving pods behind the Gateway"
-pei "kubectl get inferencepools -n \${NAMESPACE}"
-pei "# The inference scheduler (endpoint picker) makes cache-aware routing decisions"
-pei "kubectl get pods -n \${NAMESPACE} -l inferencepool"
-pei "# The HTTPRoute routes traffic to an InferencePool, not a Service, that's GAIE!"
-pei "kubectl get httproute -n \${NAMESPACE} -o custom-columns=NAME:.metadata.name,BACKEND:.spec.rules[0].backendRefs[0].name,KIND:.spec.rules[0].backendRefs[0].kind"
-pei "# Verify the route is properly attached to the Gateway"
+pei "# Verify the Gateway has routes attached to it"
 pei "kubectl get gateway -n \${NAMESPACE} -o custom-columns=NAME:.metadata.name,ATTACHED-ROUTES:.status.listeners[0].attachedRoutes"
+pei "# Those HTTPRoutes route traffic to an InferencePool, instead of a Service, that's GAIE!"
+pei "kubectl get httproute -n \${NAMESPACE} -o custom-columns=NAME:.metadata.name,BACKEND:.spec.rules[0].backendRefs[0].name,BACKEND_KIND:.spec.rules[0].backendRefs[0].kind"
+pei "# InferencePool defines the set of model-serving pods behind the Gateway"
+pei "# Its endpoint picker routes inference requests to the optimal model serving pod"
+pei "kubectl get inferencepools -n \${NAMESPACE} -o custom-columns=NAME:.metadata.name,EPP:.spec.endpointPickerRef.name"
 wait
 
 # To ensure the audience can focus on the following steps, we clear the screen
@@ -61,7 +59,8 @@ clear
 ###############################################################################
 
 pei "# ✅ AI-conformant platforms SHOULD support disaggregated inference"
-pei "# To scale efficiently, disaggregated serving splits prefill and decode into separately scalable components, each can match different compute, memory, and network needs"
+pei "# Let's look at the model serving pods in the InferencePool"
+pei "# To scale efficiently, disaggregated serving splits prefill and decode into separately scalable components"
 pei "# Prefill pods handle prompt processing (compute-heavy)"
 pei "kubectl get pods -n \${NAMESPACE} -l llm-d.ai/role=prefill -o custom-columns=NAME:.metadata.name,STATUS:.status.phase,NODE:.spec.nodeName"
 pei "# Decode pods handle token generation (memory-bandwidth-heavy)"
@@ -75,7 +74,7 @@ clear
 ###############################################################################
 
 pei "# All layers are in place. Let's send a live inference request."
-pei "# Request → Gateway → GAIE (cache-aware routing) → Prefill → Decode → Response"
+pei "# Request → Gateway → GAIE (advanced inference routing) → Prefill → Decode → Response"
 export GATEWAY_NAME=$(kubectl get gateway -n ${NAMESPACE} -o jsonpath='{.items[0].metadata.name}')
 export GATEWAY_IP=$(kubectl get gateway ${GATEWAY_NAME} -n ${NAMESPACE} -o jsonpath='{.status.addresses[0].value}')
 export GATEWAY_PORT=$(kubectl get gateway ${GATEWAY_NAME} -n ${NAMESPACE} -o jsonpath='{.spec.listeners[0].port}')
